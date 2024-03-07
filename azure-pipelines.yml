@@ -1,0 +1,44 @@
+# ASP.NET
+# Build and test ASP.NET projects.
+# Add steps that publish symbols, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
+
+trigger:
+- master
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+
+steps:
+- task: UseDotNet@2
+  inputs:
+   packageType: sdk
+   version: 7.x
+   
+- task: NuGetToolInstaller@1
+
+- task: NuGetCommand@2
+  inputs:
+    restoreSolution: '$(solution)'
+
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)"'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+    
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      dotnet --version
+      dotnet --list-runtimes
+      Copy-Item "$(System.DefaultWorkingDirectory)/IntegrationTest/bin/$(buildConfiguration)/net7.0/IntegrationTest.runtimeconfig.json" "$(System.DefaultWorkingDirectory)/IntegrationTest/bin/$(buildConfiguration)/net7.0/testhost.runtimeconfig.json"
+      Copy-Item "$(System.DefaultWorkingDirectory)/Test/bin/$(buildConfiguration)/net7.0/UnitTest.runtimeconfig.json" "$(System.DefaultWorkingDirectory)/Test/bin/$(buildConfiguration)/net7.0/testhost.runtimeconfig.json"
+    
